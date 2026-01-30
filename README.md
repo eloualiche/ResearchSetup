@@ -46,17 +46,19 @@ Breaking this down:
 
 ```bash
 # Install to CURRENT directory (creates _tools/ here)
-curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script -
+curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script -
 
 # Install to a SPECIFIC project directory
-curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script - /path/to/my/project
+curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script - /path/to/my/project
 
 # Install with CUSTOM tools location (instead of _tools/)
-curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script - /path/to/project --dest utils
+curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script - /path/to/project --dest utils
 
 # Install tools directly in project root (no subdirectory)
-curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script - /path/to/project --dest .
+curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script - /path/to/project --dest .
 ```
+
+The URL `releases/latest/download/install.py` automatically redirects to the most recent release.
 
 ### If you have the repo cloned locally
 

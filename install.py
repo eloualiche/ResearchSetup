@@ -11,17 +11,17 @@ ResearchSetup Installer
 Installs the ResearchSetup linking tools into your project.
 
 Usage:
-    # Download and run directly
-    curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script -
-
-    # Install to current directory with default location (_tools/)
-    uv run install.py
+    # Download from release and run
+    curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script -
 
     # Install to a specific project
-    uv run install.py /path/to/project
+    curl -fsSL .../install.py | uv run --script - /path/to/project
 
-    # Custom utilities location
-    uv run install.py /path/to/project --dest utils
+    # Custom tools location
+    curl -fsSL .../install.py | uv run --script - /path/to/project --dest utils
+
+    # If running locally
+    uv run install.py /path/to/project
 """
 
 import argparse
