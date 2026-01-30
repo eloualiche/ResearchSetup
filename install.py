@@ -80,121 +80,64 @@ def download_file(src_path: str, dest_path: Path) -> bool:
         return False
 
 
-def create_link_wrapper(target_dir: Path, tools_dir: str) -> None:
-    """Create a convenience wrapper script."""
-    wrapper_content = f'''# /// script
-# requires-python = ">=3.11"
-# dependencies = []
-# ///
-"""
-Convenience wrapper for ResearchSetup.
-Exports the Nickel template and runs the linker.
-
-Usage: uv run link.py [--dry-run] [--verbose]
-"""
-
-import subprocess
-import sys
-from pathlib import Path
-
-def main():
-    script_dir = Path(__file__).resolve().parent
-    config_file = script_dir / "links.json"
-    template_file = script_dir / "{tools_dir}/templates/links.ncl"
-    linker_script = script_dir / "{tools_dir}/link_json.py"
-
-    # Check for nickel
-    try:
-        subprocess.run(["nickel", "--version"], capture_output=True, check=True)
-    except FileNotFoundError:
-        print("Error: nickel is not installed. Install it with:")
-        print("  brew install nickel")
-        print("  # or: cargo install nickel-lang-cli")
-        sys.exit(1)
-
-    # Export template to JSON
-    print("Exporting Nickel template...")
-    result = subprocess.run(
-        ["nickel", "export", "--format", "json", str(template_file)],
-        capture_output=True,
-        text=True
-    )
-    if result.returncode != 0:
-        print(f"Error exporting template: {{result.stderr}}")
-        sys.exit(1)
-
-    config_file.write_text(result.stdout)
-
-    # Run the linker with uv, passing through any arguments
-    subprocess.run(["uv", "run", str(linker_script), str(config_file)] + sys.argv[1:])
-
-if __name__ == "__main__":
-    main()
-'''
-
-    wrapper_path = target_dir / "link.py"
-    wrapper_path.write_text(wrapper_content)
-    console.print("  [green]ok[/] link.py")
-
-
-def create_template(target_dir: Path, tools_dir: str) -> None:
-    """Create the starter template with correct import path."""
-    template_content = f"""# =============================================================================
-# links.ncl - Define your data links here
+def create_template(tools_path: Path) -> None:
+    """Create the starter template."""
+    template_content = """\
+# =============================================================================
+# links_template.ncl - Define your data links here
 # =============================================================================
 # Usage:
-#   nickel export --format json {tools_dir}/templates/links.ncl > links.json
-#   uv run {tools_dir}/link_json.py links.json
+#   nickel export --format json _tools/nickel/links_template.ncl > links.json
+#   uv run _tools/scripts/link_json.py links.json
 # =============================================================================
 
 let
-    link_contracts = (import "../nickel/link_contracts.ncl")
+    link_contracts = (import "link_contracts.ncl")
 in
 let
     Link = link_contracts.link,
     serialize_records = link_contracts.serialize_records
 in
 
-{{
+{
   # Environment - override local_task at evaluation time if needed
-  env | not_exported = {{
+  env | not_exported = {
     local_task | String | default = ".",
-  }},
+  },
 
   # -------------------------------------------------------------------------
   # Define your links below
   # -------------------------------------------------------------------------
 
   # Example: Link a single file
-  # MyDataFile | Link = 'file {{
-  #     metadata = {{ description = "Description of this data file." }},
-  #     source = {{
+  # MyDataFile | Link = 'file {
+  #     metadata = { description = "Description of this data file." },
+  #     source = {
   #       file = "data.csv",
   #       directory = "/path/to/source/data"
-  #     }},
-  #     target = {{
-  #       directory = "%{{env.local_task}}/input/data"
-  #     }}
-  # }},
+  #     },
+  #     target = {
+  #       directory = "%{env.local_task}/input/data"
+  #     }
+  # },
 
   # Example: Link a directory
-  # MyDataDir | Link = 'dir {{
-  #     metadata = {{ description = "Raw data directory." }},
-  #     source = {{ directory = "/path/to/source/raw_data" }},
-  #     target = {{ directory = "%{{env.local_task}}/input/raw" }}
-  # }},
+  # MyDataDir | Link = 'dir {
+  #     metadata = { description = "Raw data directory." },
+  #     source = { directory = "/path/to/source/raw_data" },
+  #     target = { directory = "%{env.local_task}/input/raw" }
+  # },
 
-}}
+}
 |> serialize_records
 """
 
-    template_path = target_dir / tools_dir / "templates/links.ncl"
+    template_path = tools_path / "nickel/links_template.ncl"
     if template_path.exists():
-        console.print("  [yellow]skip[/] templates/links.ncl (already exists)")
+        console.print("  [yellow]skip[/] links_template.ncl (already exists)")
     else:
-        template_path.parent.mkdir(parents=True, exist_ok=True)
         template_path.write_text(template_content)
-        console.print("  [green]ok[/] templates/links.ncl")
+        console.print("  [green]ok[/] links_template.ncl")
 
 
 def main():
@@ -203,10 +146,9 @@ def main():
 Install ResearchSetup linking tools into a project directory.
 
 This script downloads and installs:
-  - link_json.py: The main linker script
-  - link_contracts.ncl: Nickel type contracts for link definitions
-  - links.ncl: A starter template for defining your links
-  - link.py: A convenience wrapper script
+  - scripts/link_json.py: The main linker script
+  - nickel/link_contracts.ncl: Type contracts for link definitions
+  - nickel/links_template.ncl: Starter template for defining your links
 """.strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -220,13 +162,13 @@ Examples:
   # Put tools in a custom subdirectory
   uv run install.py /path/to/project --dest utils
 
-  # Put tools directly in project root (no subdirectory)
-  uv run install.py /path/to/project --dest .
-
   # Pipe from curl (for remote installation)
-  curl -fsSL https://raw.githubusercontent.com/.../install.py | uv run --script - /path/to/project
+  curl -fsSL https://github.com/.../install.py | uv run --script - /path/to/project
 
-After installation, edit <dest>/templates/links.ncl and run: uv run link.py
+After installation:
+  1. Edit <dest>/nickel/links_template.ncl to define your links
+  2. Run: nickel export <dest>/nickel/links_template.ncl > links.json
+  3. Run: uv run <dest>/scripts/link_json.py links.json
 """,
     )
     parser.add_argument(
@@ -284,14 +226,14 @@ After installation, edit <dest>/templates/links.ncl and run: uv run link.py
 
     # Create directories
     console.print("\n[blue]Installing...[/]")
+    (tools_path / "scripts").mkdir(parents=True, exist_ok=True)
     (tools_path / "nickel").mkdir(parents=True, exist_ok=True)
-    (tools_path / "templates").mkdir(parents=True, exist_ok=True)
 
     # Install core files
     success = True
 
-    # Main script
-    if not install_file("src/python/link_json.py", tools_path / "link_json.py"):
+    # Main linker script
+    if not install_file("src/python/link_json.py", tools_path / "scripts/link_json.py"):
         success = False
 
     # Nickel contracts
@@ -300,21 +242,22 @@ After installation, edit <dest>/templates/links.ncl and run: uv run link.py
     ):
         success = False
 
-    # Create template with correct import path
-    create_template(target_dir, tools_dir)
-
-    # Create convenience wrapper
-    create_link_wrapper(target_dir, tools_dir)
+    # Create starter template
+    create_template(tools_path)
 
     # Summary
     if success:
         console.print("\n[bold green]Done![/]\n")
         console.print("Next steps:")
         console.print(
-            f"  1. Edit [blue]{tools_dir}/templates/links.ncl[/] to define your links"
+            f"  1. Edit [blue]{tools_dir}/nickel/links_template.ncl[/] to define your links"
         )
-        console.print("  2. Run [blue]uv run link.py --dry-run[/] to preview")
-        console.print("  3. Run [blue]uv run link.py[/] to create symlinks")
+        console.print(
+            f"  2. Export: [blue]nickel export {tools_dir}/nickel/links_template.ncl > links.json[/]"
+        )
+        console.print(
+            f"  3. Link:   [blue]uv run {tools_dir}/scripts/link_json.py links.json[/]"
+        )
     else:
         console.print("\n[bold red]Installation completed with errors.[/]")
         sys.exit(1)
