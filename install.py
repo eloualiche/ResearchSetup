@@ -199,31 +199,53 @@ in
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Install ResearchSetup into a project directory.",
+        description="""
+Install ResearchSetup linking tools into a project directory.
+
+This script downloads and installs:
+  - link_json.py: The main linker script
+  - link_contracts.ncl: Nickel type contracts for link definitions
+  - links.ncl: A starter template for defining your links
+  - link.py: A convenience wrapper script
+""".strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  uv run install.py                      # Install to current dir, tools in _tools/
-  uv run install.py /path/to/project     # Install to specific project
-  uv run install.py . --dest utils       # Install tools to utils/
-  uv run install.py . --dest .           # Install directly in project root
-        """,
+  # Install to current directory with tools in _tools/
+  uv run install.py
+
+  # Install to a specific project
+  uv run install.py /path/to/my/project
+
+  # Put tools in a custom subdirectory
+  uv run install.py /path/to/project --dest utils
+
+  # Put tools directly in project root (no subdirectory)
+  uv run install.py /path/to/project --dest .
+
+  # Pipe from curl (for remote installation)
+  curl -fsSL https://raw.githubusercontent.com/.../install.py | uv run --script - /path/to/project
+
+After installation, edit <dest>/templates/links.ncl and run: uv run link.py
+""",
     )
     parser.add_argument(
         "target_dir",
         nargs="?",
         default=".",
-        help="Target project directory (default: current directory)",
+        metavar="PROJECT_DIR",
+        help="Project directory to install into (default: current directory)",
     )
     parser.add_argument(
         "--dest",
         default="_tools",
+        metavar="DIR",
         help="Subdirectory for tools inside the project (default: _tools)",
     )
     parser.add_argument(
         "--remote",
         action="store_true",
-        help="Force download from remote even if local source exists",
+        help="Force download from GitHub even when running from local repo",
     )
     args = parser.parse_args()
 
