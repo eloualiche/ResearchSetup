@@ -61,7 +61,7 @@ let LinkEnum = [|
 in
 
 # Serialize link records for JSON export
-let serialize_records = fun records =>
+let _serialize_records = fun records =>
   records
   # Remove the not_exported env field
   |> std.record.filter (fun name _value => name != "env")
@@ -87,5 +87,5 @@ in
 # =============================================================================
 {
   link = LinkEnum,
-  serialize_records = serialize_records,
+  serialize_records = _serialize_records,
 }
