@@ -229,6 +229,75 @@ options:
   -h, --help       Show help message
 ```
 
+## Snakemake Integration
+
+ResearchSetup can be integrated into a Snakemake pipeline to manage data links as part of your workflow:
+
+```python
+# Snakefile
+
+rule link_data:
+    """Export Nickel template and create symlinks to source data."""
+    input:
+        script = "_tools/link_json.py",
+        template = "_tools/templates/links.ncl"
+    output:
+        json = "tmp/links.json",
+        toml = "tmp/links.toml"
+    shell:
+        """
+        nickel export {input.template} > {output.json}
+        nickel export {input.template} --format toml > {output.toml}
+        uv run {input.script} {output.toml}
+        """
+```
+
+This ensures your data links are established before downstream rules that depend on the linked files.
+
+### With a Python virtual environment (no uv)
+
+```python
+rule link_data:
+    input:
+        script = "_tools/link_json.py",
+        template = "_tools/templates/links.ncl"
+    output:
+        json = "tmp/links.json"
+    params:
+        python_env = "/path/to/your/venv"
+    shell:
+        """
+        nickel export {input.template} > {output.json}
+        source {params.python_env}/bin/activate && python {input.script} {output.json}
+        """
+```
+
+### Making linked files rule dependencies
+
+To make downstream rules depend on the linked data:
+
+```python
+rule link_data:
+    input:
+        template = "_tools/templates/links.ncl"
+    output:
+        flag = touch("tmp/.links_created")
+    shell:
+        """
+        nickel export {input.template} > tmp/links.json
+        uv run _tools/link_json.py tmp/links.json
+        """
+
+rule analyze:
+    input:
+        links_ready = "tmp/.links_created",
+        data = "input/raw/data.csv"  # This is a symlink created by link_data
+    output:
+        "output/results.csv"
+    shell:
+        "..."
+```
+
 ## Repository Structure
 
 ```
