@@ -11,6 +11,9 @@ ResearchSetup Installer
 Installs the ResearchSetup linking tools into your project.
 
 Usage:
+    # Download and run directly
+    curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script -
+
     # Install to current directory with default location (_tools/)
     uv run install.py
 
@@ -19,9 +22,6 @@ Usage:
 
     # Custom utilities location
     uv run install.py /path/to/project --dest utils
-
-    # Download and run directly
-    curl -fsSL https://raw.githubusercontent.com/USER/ResearchSetup/main/install.py | uv run --script -
 """
 
 import argparse
@@ -34,8 +34,8 @@ from rich.panel import Panel
 
 console = Console()
 
-# Remote source URL (update with your repo)
-REPO_RAW_URL = "https://raw.githubusercontent.com/USER/ResearchSetup/main"
+# Repository info
+REPO_RAW_URL = "https://raw.githubusercontent.com/eloualiche/ResearchSetup/main"
 
 
 def detect_source_dir() -> Path | None:
@@ -60,7 +60,7 @@ def copy_local_file(source_dir: Path, src_path: str, dest_path: Path) -> bool:
 
 
 def download_file(src_path: str, dest_path: Path) -> bool:
-    """Download a file from the remote repository."""
+    """Download a file from the repository."""
     import httpx
 
     url = f"{REPO_RAW_URL}/{src_path}"

@@ -26,21 +26,20 @@ cargo install nickel-lang-cli
 ## Install
 
 ```bash
-# Download and run installer
-curl -fsSL https://raw.githubusercontent.com/USER/ResearchSetup/main/install.py | uv run --script -
+# Download and run directly (installs to current directory)
+curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script -
 
 # Install to specific project
-curl -fsSL ... | uv run --script - /path/to/project
+curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script - /path/to/project
 
 # Custom tools location (default: _tools/)
-curl -fsSL ... | uv run --script - /path/to/project --dest utils
+curl -fsSL https://raw.githubusercontent.com/eloualiche/ResearchSetup/main/install.py | uv run --script - . --dest utils
 ```
 
-Or if you have this repo locally:
+If you have the repo cloned locally:
 
 ```bash
 uv run install.py /path/to/project
-uv run install.py /path/to/project --dest utils
 ```
 
 ## Usage
