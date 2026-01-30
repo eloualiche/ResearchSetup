@@ -7,16 +7,16 @@ Create symbolic links from source data directories to your research project usin
 Instead of copying data or manually creating symlinks, define your links in a Nickel config file and run one command.
 
 ```
-Nickel template (.ncl)  →  JSON  →  Python creates symlinks
+Nickel template (.ncl)  →  TOML/JSON  →  Python creates symlinks
 ```
 
 ## Prerequisites
 
-- **[uv](https://docs.astral.sh/uv/)** - Python package runner (handles dependencies automatically)
-- **[Nickel](https://nickel-lang.org/)** - Configuration language for defining links
+- **[uv](https://docs.astral.sh/uv/)** - Python package runner
+- **[Nickel](https://nickel-lang.org/)** - Configuration language
 
 ```bash
-# Install uv (if not already installed)
+# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install Nickel (macOS)
@@ -28,70 +28,40 @@ cargo install nickel-lang-cli
 
 ## Install
 
-The installer downloads the necessary files into your project. It creates a `_tools/` directory (configurable) containing the linker script and Nickel contracts.
-
-### How the install command works
-
 ```bash
-curl -fsSL <url> | uv run --script - [arguments]
-```
-
-Breaking this down:
-- `curl -fsSL <url>` — Downloads the install script from GitHub
-- `|` — Pipes the script to the next command
-- `uv run --script -` — Runs the piped Python script (`-` means "read from stdin")
-- `[arguments]` — Any arguments after `-` are passed to the Python script
-
-### Installation examples
-
-```bash
-# Install to CURRENT directory (creates _tools/ here)
 curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script -
-
-# Install to a SPECIFIC project directory
-curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script - /path/to/my/project
-
-# Install with CUSTOM tools location (instead of _tools/)
-curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script - /path/to/project --dest utils
-
-# Install tools directly in project root (no subdirectory)
-curl -fsSL https://github.com/eloualiche/ResearchSetup/releases/latest/download/install.py | uv run --script - /path/to/project --dest .
 ```
 
-The URL `releases/latest/download/install.py` automatically redirects to the most recent release.
-
-### If you have the repo cloned locally
-
+With options:
 ```bash
-# The installer detects local source and copies files directly
-uv run install.py /path/to/project
+# Install to specific project
+curl -fsSL .../install.py | uv run --script - /path/to/project
 
-# Force download from GitHub even when running locally
-uv run install.py /path/to/project --remote
+# Custom tools directory (default: _tools)
+curl -fsSL .../install.py | uv run --script - /path/to/project --dest utils
 ```
 
 ### What gets installed
 
 ```
 your-project/
-├── link.py                    # Convenience wrapper (run this)
-└── _tools/                    # Tools directory (--dest controls this)
-    ├── link_json.py           # Main linker script
-    ├── nickel/
-    │   └── link_contracts.ncl # Type contracts for links
-    └── templates/
-        └── links.ncl          # Your link definitions (edit this)
+└── _tools/
+    ├── scripts/
+    │   └── link_json.py           # Main linker script
+    └── nickel/
+        ├── link_contracts.ncl     # Type contracts
+        └── links_template.ncl     # Your config (edit this)
 ```
 
 ## Usage
 
 ### 1. Define your links
 
-Edit `_tools/templates/links.ncl` to specify what data to link:
+Edit `_tools/nickel/links_template.ncl`:
 
 ```nickel
 {
-  # Link an entire directory
+  # Link a directory
   RawData | Link = 'dir {
       metadata = { description = "Raw experiment data." },
       source = { directory = "/data/shared/experiment_2024" },
@@ -111,36 +81,32 @@ Edit `_tools/templates/links.ncl` to specify what data to link:
 |> serialize_records
 ```
 
-The `%{env.local_task}` variable expands to the current directory (`.` by default).
-
-### 2. Create the symlinks
+### 2. Export and create symlinks
 
 ```bash
-# Preview what will be linked (no changes made)
-uv run link.py --dry-run
+# Export template to TOML
+nickel export --format toml _tools/nickel/links_template.ncl > links.toml
 
-# Create all symlinks
-uv run link.py
+# Create symlinks
+uv run _tools/scripts/link_json.py links.toml
 
-# Show verbose output
-uv run link.py --verbose
-```
-
-### Manual workflow (without wrapper)
-
-```bash
-# Step 1: Export Nickel template to JSON
-nickel export --format json _tools/templates/links.ncl > links.json
-
-# Step 2: Run the linker
-uv run _tools/link_json.py links.json --dry-run
+# Or preview first
+uv run _tools/scripts/link_json.py links.toml --dry-run
 ```
 
 ## Link Types
 
-### Single file (`'file`)
+### Directory (`'dir`)
 
-Creates a symlink for one file. Target filename defaults to source filename.
+```nickel
+MyDir | Link = 'dir {
+    metadata = { description = "..." },
+    source = { directory = "/path/to/data" },
+    target = { directory = "%{env.local_task}/input/data" }
+}
+```
+
+### Single file (`'file`)
 
 ```nickel
 MyFile | Link = 'file {
@@ -156,43 +122,56 @@ MyFile | Link = 'file {
 }
 ```
 
-### Directory (`'dir`)
-
-Creates a symlink for an entire directory.
-
-```nickel
-MyDir | Link = 'dir {
-    metadata = { description = "..." },
-    source = { directory = "/path/to/data" },
-    target = { directory = "%{env.local_task}/input/data" }
-}
-```
-
 ### Multiple files (`'files`)
-
-Creates symlinks for multiple files from the same source directory.
 
 ```nickel
 Configs | Link = 'files {
     metadata = { description = "..." },
     source = {
-      file = ["config1.yaml", "config2.yaml", "config3.yaml"],
+      file = ["config1.yaml", "config2.yaml"],
       directory = "/path/to/configs"
     },
     target = { directory = "%{env.local_task}/config" }
 }
 ```
 
-## Metadata
+## Snakemake Integration
 
-Optional fields for documentation and tracking:
+```python
+rule link_data:
+    input:
+        script = "_tools/scripts/link_json.py",
+        template = "_tools/nickel/links_template.ncl"
+    output:
+        toml = "tmp/links.toml"
+    shell:
+        """
+        nickel export --format toml {input.template} > {output.toml}
+        uv run {input.script} {output.toml}
+        """
+```
 
-```nickel
-metadata = {
-  description = "Human-readable description",
-  generated_by = "task_name",        # Which task creates this data
-  used_by = ["task1", "task2"]       # Which tasks consume this data
-}
+### With dependency tracking
+
+```python
+rule link_data:
+    input:
+        template = "_tools/nickel/links_template.ncl"
+    output:
+        flag = touch("tmp/.links_created")
+    shell:
+        """
+        nickel export --format toml {input.template} > tmp/links.toml
+        uv run _tools/scripts/link_json.py tmp/links.toml
+        """
+
+rule analyze:
+    input:
+        links = "tmp/.links_created",
+        data = "input/raw/data.csv"  # symlink created above
+    output:
+        "output/results.csv"
+    # ...
 ```
 
 ## CLI Reference
@@ -200,114 +179,39 @@ metadata = {
 ### install.py
 
 ```
-usage: install.py [-h] [--dest DEST] [--remote] [target_dir]
-
-Install ResearchSetup linking tools into a project.
+usage: install.py [-h] [--dest DIR] [--remote] [PROJECT_DIR]
 
 positional arguments:
-  target_dir    Project directory to install into (default: current directory)
+  PROJECT_DIR   Project directory (default: current directory)
 
 options:
-  --dest DEST   Subdirectory for tools (default: _tools)
-  --remote      Force download from GitHub even if local source exists
-  -h, --help    Show help message
+  --dest DIR    Tools subdirectory (default: _tools)
+  --remote      Force download from GitHub
 ```
 
 ### link_json.py
 
 ```
-usage: link_json.py [-h] [-d] [-v] config_file
-
-Create symbolic links from a JSON/TOML configuration.
+usage: link_json.py [-h] [-d] [-v] CONFIG_FILE
 
 positional arguments:
-  config_file      Path to the JSON/TOML configuration file
+  CONFIG_FILE   Path to .json or .toml configuration
 
 options:
-  -d, --dry-run    Preview links without creating them
-  -v, --verbose    Show additional details
-  -h, --help       Show help message
-```
-
-## Snakemake Integration
-
-ResearchSetup can be integrated into a Snakemake pipeline to manage data links as part of your workflow:
-
-```python
-# Snakefile
-
-rule link_data:
-    """Export Nickel template and create symlinks to source data."""
-    input:
-        script = "_tools/link_json.py",
-        template = "_tools/templates/links.ncl"
-    output:
-        json = "tmp/links.json",
-        toml = "tmp/links.toml"
-    shell:
-        """
-        nickel export {input.template} > {output.json}
-        nickel export {input.template} --format toml > {output.toml}
-        uv run {input.script} {output.toml}
-        """
-```
-
-This ensures your data links are established before downstream rules that depend on the linked files.
-
-### With a Python virtual environment (no uv)
-
-```python
-rule link_data:
-    input:
-        script = "_tools/link_json.py",
-        template = "_tools/templates/links.ncl"
-    output:
-        json = "tmp/links.json"
-    params:
-        python_env = "/path/to/your/venv"
-    shell:
-        """
-        nickel export {input.template} > {output.json}
-        source {params.python_env}/bin/activate && python {input.script} {output.json}
-        """
-```
-
-### Making linked files rule dependencies
-
-To make downstream rules depend on the linked data:
-
-```python
-rule link_data:
-    input:
-        template = "_tools/templates/links.ncl"
-    output:
-        flag = touch("tmp/.links_created")
-    shell:
-        """
-        nickel export {input.template} > tmp/links.json
-        uv run _tools/link_json.py tmp/links.json
-        """
-
-rule analyze:
-    input:
-        links_ready = "tmp/.links_created",
-        data = "input/raw/data.csv"  # This is a symlink created by link_data
-    output:
-        "output/results.csv"
-    shell:
-        "..."
+  -d, --dry-run   Preview without creating links
+  -v, --verbose   Show additional details
 ```
 
 ## Repository Structure
 
 ```
 ResearchSetup/
-├── install.py                 # Installer script
+├── install.py                 # Installer
 ├── src/
 │   ├── python/
-│   │   └── link_json.py       # Self-contained linker
+│   │   └── link_json.py       # Linker script
 │   └── nickel/
 │       └── link_contracts.ncl # Type contracts
 └── examples/
-    └── census_of_governments.ncl  # Full example
+    └── census_of_governments.ncl
 ```
