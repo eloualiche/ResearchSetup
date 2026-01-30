@@ -40,9 +40,13 @@ REPO_RAW_URL = "https://raw.githubusercontent.com/eloualiche/ResearchSetup/main"
 
 def detect_source_dir() -> Path | None:
     """Check if we're running from the ResearchSetup source directory."""
-    script_dir = Path(__file__).resolve().parent
-    if (script_dir / "src/python/link_json.py").exists():
-        return script_dir
+    try:
+        script_dir = Path(__file__).resolve().parent
+        if (script_dir / "src/python/link_json.py").exists():
+            return script_dir
+    except NameError:
+        # __file__ not defined when piped to interpreter
+        pass
     return None
 
 
